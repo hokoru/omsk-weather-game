@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <title>Омская Погода: Карточный Дуэль</title>
+  <style>
+    /* --- Общий стиль --- */
+    body {
+      margin: 0;
+      padding: 20px;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #bec8cc 0%, #8fa2a7 100%);
+      color: #2c3e50;
+      user-select: none;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+    }
+
+    h1 {
+      margin-bottom: 10px;
+      font-weight: 700;
+      text-align: center;
+      color: #1b2733;
+      text-shadow: 0 1px 3px rgba(255,255,255,0.5);
+    }
+
+    #game {
+      background: #d7dde0cc;
+      border-radius: 12px;
+      padding: 15px 25px;
+      max-width: 700px;
+      width: 100%;
+      box-shadow: 0 6px 15px rgba(0,0,0,0.15);
+    }
+
+    .player-area {
+      margin: 15px 0;
+      border-radius: 10px;
+      background: #c3ced3cc;
+      padding: 12px;
+      box-shadow: inset 0 2px 6px #a1afbb99;
+      transition: background-color 0.3s ease;
+    }
+
+    .player-area.active {
+      background: #8ab3d1cc;
+      box-shadow: inset 0 2px 8px #6190c799;
+    }
+
+    .player-title {
+      margin: 0 0 8px 0;
+      font-weight: 600;
+      font-size: 1.2em;
+      color: #1f2f3f;
+      text-shadow: 0 1px 0 #f0f6fb;
+    }
+
+    .stats {
+      display: flex;
+      justify-content: space-around;
+      margin-bottom: 8px;
+      font-weight: 500;
+      color: #34495e;
+    }
+
+    .stat {
+      background: #e2e8ebcc;
+      border-radius: 8px;
+      padding: 4px 12px;
+      min-width: 80px;
+      text-align: center;
+      box-shadow: inset 0 1px 3px #b9c4cb;
+    }
+
+    /* --- Карты --- */
+    .hand {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      justify-content: center;
+      min-height: 100px;
+      user-select: none;
+    }
+
+    .card {
+      background: #f8fafc;
+      border: 1.5px solid #95a5a6;
+      border-radius: 12px;
+      width: 110px;
+      padding: 10px 12px;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+      cursor: pointer;
+      transition:
+        border-color 0.3s ease,
+        transform 0.2s ease,
+        box-shadow 0.3s ease;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      user-select: none;
+      font-size: 0.9rem;
+      color: #2c3e50;
+    }
+
+    .card:hover {
+      border-color: #2980b9;
+      box-shadow: 0 6px 14px rgba(41,128,185,0.4);
+      transform: translateY(-4px);
+    }
+
+    .card.selected {
+      border-color: #e74c3c;
+      box-shadow: 0 0 15px #e74c3caa;
+      transform: translateY(-6px);
+    }
+
+    .card .title {
+      font-weight: 700;
+      margin-bottom: 6px;
+      text-align: center;
+    }
+
+    .card .desc {
+      font-size: 0.8rem;
+      text-align: center;
+      color: #576574;
+    }
+
+    /* --- Кнопки --- */
+    .controls {
+      margin: 15px 0;
+      display: flex;
+      justify-content: center;
+      gap: 25px;
+    }
+
+    button {
+      background: #34495e;
+      color: #ecf0f1;
+      border: none;
+      padding: 10px 22px;
+      border-radius: 30px;
+      font-weight: 600;
+      font-size: 1rem;
+      cursor: pointer;
+      box-shadow: 0 5px 10px rgba(52,73,94,0.4);
+      transition: background-color 0.3s ease, box-shadow 0.3s ease;
+      user-select: none;
+      min-width: 130px;
+    }
+
+    button:hover:not(:disabled) {
+      background: #2c3e50;
+      box-shadow: 0 7px 18px rgba(44,62,80,0.7);
+    }
+
+    button:disabled {
+      background: #95a5a6;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+
+    /* --- Индикатор хода --- */
+    #turnIndicator {
+      font-weight: 700;
+      font-size: 1.1rem;
+      text-align: center;
+      margin-bottom: 10px;
+      color: #34495e;
+      user-select: none;
+    }
+
+миста вайт, [04.06.2025 2:47]
+/* --- Лог --- */
+    #log {
+      max-height: 140px;
+      overflow-y: auto;
+      background: #e4ebf0cc;
+      border-radius: 8px;
+      padding: 10px;
+      font-size: 0.85rem;
+      color: #2c3e50cc;
+      box-shadow: inset 0 2px 4px #a1afbb99;
+      user-select: none;
+      margin-top: 15px;
+    }
+    #log div {
+      margin-bottom: 4px;
+    }
+
+    /* --- Анимация выбора --- */
+    @keyframes pulse {
+      0%, 100% { box-shadow: 0 0 10px 2px #e74c3caa; }
+      50% { box-shadow: 0 0 18px 5px #e74c3cee; }
+    }
+    .card.selected {
+      animation: pulse 1.5s infinite ease-in-out;
+    }
+
+    /* --- Подсказка для победы --- */
+    .card.can-beat {
+      border-color: #27ae60 !important;
+      box-shadow: 0 0 12px #27ae6099 !important;
+    }
+  </style>
+</head>
+<body>
+  <h1>Омская Погода: Карточный Дуэль</h1>
+  <div id="game">
+    <div id="turnIndicator">Ход игрока 1</div>
+
+    <div class="player-area active" id="player1Area">
+      <div class="player-title">Игрок 1</div>
+      <div class="stats">
+        <div class="stat">Здоровье: <span id="health1">5</span></div>
+        <div class="stat">Настроение: <span id="mood1">5</span></div>
+      </div>
+      <div class="hand" id="hand1"></div>
+    </div>
+
+    <div class="player-area" id="player2Area">
+      <div class="player-title">Игрок 2</div>
+      <div class="stats">
+        <div class="stat">Здоровье: <span id="health2">5</span></div>
+        <div class="stat">Настроение: <span id="mood2">5</span></div>
+      </div>
+      <div class="hand" id="hand2"></div>
+    </div>
+
+    <div class="controls">
+      <button id="drawBtn">Взять карту</button>
+      <button id="playBtn" disabled>Сыграть карту</button>
+    </div>
+
+    <div id="log"></div>
+  </div>
+
+<script>
+  // --- Карты (плохие и хорошие) ---
+  const cards = [
+    { id: 1, name: "Метель", type: "weather", desc: "Уменьшает здоровье противника на 1", effect: (target) => changeHealth(target, -1) },
+    { id: 2, name: "Снежный дождь", type: "weather", desc: "Уменьшает настроение противника на 1", effect: (target) => changeMood(target, -1) },
+    { id: 3, name: "Туман", type: "weather", desc: "Уменьшает настроение противника на 2", effect: (target) => changeMood(target, -2) },
+
+    { id: 4, name: "Резиновые сапоги", type: "gear", desc: "Увеличивает настроение игрока на 1", effect: (player) => changeMood(player, 1) },
+    { id: 5, name: "Зонт", type: "gear", desc: "Защищает от тумана и снега", effect: () => {} },
+    { id: 6, name: "Тёплая шуба", type: "gear", desc: "Увеличивает здоровье игрока на 2", effect: (player) => changeHealth(player, 2) },
+
+    { id: 7, name: "Пакет на ботинки", type: "gear", desc: "Увеличивает здоровье игрока на 1", effect: (player) => changeHealth(player, 1) },
+    { id: 8, name: "Град", type: "weather", desc: "Уменьшает здоровье противника на 2", effect: (target) => changeHealth(target, -2) },
+    { id: 9, name: "Солнечный день", type: "weather", desc: "Увеличивает настроение игрока на 1", effect: (player) => changeMood(player, 1) },
+
+    { id: 10, name: "Психологическая устойчивость", type: "gear", desc: "Увеличивает настроение игрока на 2", effect: (player) => changeMood(player, 2) },
+  ];
+
+  // --- Переменные игры ---
+  let deck = [];
+  let hands = [[], []]; // Массив карт у игроков
+  let health = [5, 5];
+  let mood = [5, 5];
+  let currentPlayer = 0;
+  let selectedCardIndex = null;
+
+  const handDivs = [document.getElementById("hand1"), document.getElementById("hand2")];
+  const healthSpans = [document.getElementById("health1"), document.getElementById("health2")];
+  const moodSpans = [document.getElementById("mood1"), document.getElementById("mood2")];
+  const playerAreas = [document.getElementById("player1Area"), document.getElementById("player2Area")];
+  const turnIndicator = document.getElementById("turnIndicator");
+  const drawBtn = document.getElementById("drawBtn");
+  const playBtn = document.getElementById("playBtn");
+  const logDiv = document.getElementById("log");
+
+миста вайт, [04.06.2025 2:47]
+// --- Инициализация колоды ---
+  function initDeck() {
+    deck = [];
+    for (let i = 0; i < cards.length * 3; i++) { // 3 копии каждой карты
+      deck.push(cards[i % cards.length]);
+    }
+    shuffle(deck);
+  }
+
+  // --- Перемешивание колоды ---
+  function shuffle(array) {
+    for (let i = array.length -1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i+1));
+      [array[i], array[j]] = [array[j], array[i]];
+    }
+  }
+
+  // --- Обновление интерфейса рук ---
+  function updateHands() {
+    handDivs.forEach((handDiv, i) => {
+      handDiv.innerHTML = "";
+      hands[i].forEach((card, idx) => {
+        const cardDiv = document.createElement("div");
+        cardDiv.className = "card";
+        if (currentPlayer === i && selectedCardIndex === idx) {
+          cardDiv.classList.add("selected");
+        }
+        cardDiv.innerHTML = <div class="title">${card.name}</div><div class="desc">${card.desc}</div>;
+        cardDiv.onclick = () => {
+          if (currentPlayer !== i) return;
+          if (selectedCardIndex === idx) {
+            selectedCardIndex = null;
+          } else {
+            selectedCardIndex = idx;
+          }
+          updateHands();
+          updateButtons();
+        };
+
+        // Подсветка карт, которые могут побить последнюю сыгранную карту
+        if (currentPlayer === i) {
+          const opponent = 1 - i;
+          if (canBeat(card, hands[opponent][hands[opponent].length - 1])) {
+            cardDiv.classList.add("can-beat");
+          }
+        }
+        handDiv.appendChild(cardDiv);
+      });
+    });
+  }
+
+  // --- Проверка, может ли одна карта побить другую ---
+  // Пример логики: "gear" побеждает "weather", "weather" наносит урон gear
+  function canBeat(card, opponentCard) {
+    if (!card  !opponentCard) return false;
+    // gear может блокировать weather
+    if (card.type === "gear" && opponentCard.type === "weather") return true;
+    // weather не может побить gear
+    if (card.type === "weather" && opponentCard.type === "gear") return false;
+    // однаковый тип - не может побить
+    if (card.type === opponentCard.type) return false;
+    return false;
+  }
+
+  // --- Взять карту ---
+  function drawCard() {
+    if (deck.length === 0) {
+      log("Колода пуста! Игра окончена.");
+      drawBtn.disabled = true;
+      playBtn.disabled = true;
+      return;
+    }
+    const card = deck.pop();
+    hands[currentPlayer].push(card);
+    log(`Игрок ${currentPlayer + 1} взял карту "${card.name}"`);
+    updateHands();
+    updateButtons();
+  }
+
+  // --- Сыграть карту ---
+  function playCard() {
+    if (selectedCardIndex === null) {
+      alert("Выберите карту для игры!");
+      return;
+    }
+
+    const card = hands[currentPlayer][selectedCardIndex];
+    const opponent = 1 - currentPlayer;
+
+    // Применяем эффект карты (если есть эффект с целью - враг или себя)
+    if (card.type === "weather") {
+      card.effect(opponent);
+      log(`Игрок ${currentPlayer + 1} сыграл погодную карту "${card.name}" на игрока ${opponent + 1}`);
+    } else if (card.type === "gear") {
+      card.effect(currentPlayer);
+      log(`Игрок ${currentPlayer + 1} сыграл экипировку "${card.name}"`);
+    }
+
+    // Удаляем карту из руки
+    hands[currentPlayer].splice(selectedCardIndex, 1);
+    selectedCardIndex = null;
+
+    // Проверяем поражение
+    if (health[opponent] <= 0  mood[opponent] <= 0) {
+      alert(Игрок ${opponent + 1} проиграл! Игра завершена.);
+      resetGame();
+      return;
+    }
+
+    // Смена хода
+    currentPlayer = opponent;
+    log(Теперь ход игрока ${currentPlayer + 1});
+
+    updateHands();
+    updateStats();
+    updateButtons();
+    highlightActivePlayer();
+  }
+
+  // --- Обновить здоровье и настроение ---
+  function updateStats() {
+    healthSpans.forEach((span, i) => {
+      span.textContent = health[i];
+      span.style.color = health[i] <= 2 ? "#e74c3c" : "#2c3e50";
+    });
+    moodSpans.forEach((span, i) => {
+      span.textContent = mood[i];
+      mood[i] <= 2 ? moodSpans[i].style.color = "#e74c3c" : moodSpans[i].style.color = "#2c3e50";
+    });
+  }
+
+миста вайт, [04.06.2025 2:47]
+// --- Изменить здоровье ---
+  function changeHealth(player, amount) {
+    health[player] = Math.min(10, Math.max(0, health[player] + amount));
+    updateStats();
+  }
+
+  // --- Изменить настроение ---
+  function changeMood(player, amount) {
+    mood[player] = Math.min(10, Math.max(0, mood[player] + amount));
+    updateStats();
+  }
+
+  // --- Лог ---
+  function log(text) {
+    const div = document.createElement("div");
+    div.textContent = text;
+    logDiv.prepend(div);
+  }
+
+  // --- Сброс игры ---
+  function resetGame() {
+    initDeck();
+    hands = [[], []];
+    health = [5, 5];
+    mood = [5, 5];
+    currentPlayer = 0;
+    selectedCardIndex = null;
+    updateHands();
+    updateStats();
+    updateButtons();
+    highlightActivePlayer();
+    log("Новая игра началась!");
+    drawBtn.disabled = false;
+    playBtn.disabled = true;
+  }
+
+  // --- Обновить кнопки ---
+  function updateButtons() {
+    drawBtn.disabled = currentPlayer === null || deck.length === 0;
+    playBtn.disabled = selectedCardIndex === null;
+  }
+
+  // --- Подсветить активного игрока ---
+  function highlightActivePlayer() {
+    playerAreas.forEach((area, i) => {
+      area.classList.toggle("active", i === currentPlayer);
+    });
+    turnIndicator.textContent = Ход игрока ${currentPlayer + 1};
+  }
+
+  // --- Обработчики ---
+  drawBtn.onclick = () => {
+    drawCard();
+  };
+
+  playBtn.onclick = () => {
+    playCard();
+  };
+
+  // --- Запуск ---
+  resetGame();
+</script>
+</body>
+</html>
